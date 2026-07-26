@@ -1,0 +1,25 @@
+{
+  "name": "cliynab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "build": "bun build --compile --minify --sourcemap ./src/index.ts --outfile ./dist/cliynab.exe",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint src",
+    "fmt": "oxfmt src",
+    "fmt:check": "oxfmt --check src",
+    "postinstall": "git config core.hooksPath .githooks"
+  },
+  "dependencies": {
+    "commander": "^13.1.0",
+    "ynab": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.16",
+    "oxfmt": "^0.60.0",
+    "oxlint": "^1.75.0",
+    "typescript": "^5.7.3"
+  }
+}
