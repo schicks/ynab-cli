@@ -1,21 +1,31 @@
 import { randomBytes } from "node:crypto";
-import { createInterface } from "node:readline/promises";
-import {
-  getClientCredentials,
-  getStoredTokens,
-  storeClientCredentials,
-  storeTokens,
-  type TokenResponse,
-} from "./config";
+import { getStoredToken, storeToken } from "./config";
 
 const AUTHORIZE_URL = "https://app.ynab.com/oauth/authorize";
-const TOKEN_URL = "https://app.ynab.com/oauth/token";
 const REDIRECT_HOST = "127.0.0.1";
 const REDIRECT_PORT = 51739;
 export const REDIRECT_URI = `http://${REDIRECT_HOST}:${REDIRECT_PORT}/callback`;
 
 const CALLBACK_TIMEOUT_MS = 5 * 60 * 1000;
 const EXPIRY_SKEW_MS = 60 * 1000;
+
+// Implicit grant returns the token in the URL fragment, which browsers never send to the
+// server. This page relays it to us via a same-origin fetch that carries it as a query string.
+const CALLBACK_HTML = `<!doctype html>
+<html>
+  <body>
+    <script>
+      const params = new URLSearchParams(window.location.hash.slice(1));
+      fetch("/token?" + params.toString())
+        .then(() => {
+          document.body.textContent = "Authorization complete. You can close this tab and return to the terminal.";
+        })
+        .catch(() => {
+          document.body.textContent = "Something went wrong. Return to the terminal for details.";
+        });
+    </script>
+  </body>
+</html>`;
 
 function openBrowser(url: string): void {
   switch (process.platform) {
@@ -32,30 +42,23 @@ function openBrowser(url: string): void {
   }
 }
 
-async function ensureClientCredentials(): Promise<{ clientId: string; clientSecret: string }> {
-  const existing = getClientCredentials();
-  if (existing) return existing;
-
-  console.log(
-    "No YNAB OAuth application configured yet.\n" +
-      "Register one at https://app.ynab.com/settings/developer -> OAuth Applications -> New Application.\n" +
-      `Set the Redirect URI to exactly: ${REDIRECT_URI}\n`,
-  );
-
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  const clientId = (await rl.question("Client ID: ")).trim();
-  const clientSecret = (await rl.question("Client Secret: ")).trim();
-  rl.close();
-
-  if (!clientId || !clientSecret) {
-    throw new Error("Client ID and Client Secret are required.");
+function getClientId(): string {
+  const clientId = process.env.YNAB_CLIENT_ID;
+  if (!clientId) {
+    throw new Error(
+      "Missing YNAB_CLIENT_ID. This is baked in at build time via `bun run build`; " +
+        "if you're running from source, set it in .env.",
+    );
   }
-
-  storeClientCredentials(clientId, clientSecret);
-  return { clientId, clientSecret };
+  return clientId;
 }
 
-function waitForCallback(expectedState: string): Promise<string> {
+interface CallbackResult {
+  accessToken: string;
+  expiresIn: number;
+}
+
+function waitForCallback(expectedState: string): Promise<CallbackResult> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       server.stop(true);
@@ -67,11 +70,17 @@ function waitForCallback(expectedState: string): Promise<string> {
       port: REDIRECT_PORT,
       fetch(req) {
         const url = new URL(req.url);
-        if (url.pathname !== "/callback") {
+
+        if (url.pathname === "/callback") {
+          return new Response(CALLBACK_HTML, { headers: { "Content-Type": "text/html" } });
+        }
+
+        if (url.pathname !== "/token") {
           return new Response("Not found", { status: 404 });
         }
 
-        const code = url.searchParams.get("code");
+        const accessToken = url.searchParams.get("access_token");
+        const expiresIn = Number(url.searchParams.get("expires_in"));
         const state = url.searchParams.get("state");
         const error = url.searchParams.get("error");
 
@@ -80,42 +89,28 @@ function waitForCallback(expectedState: string): Promise<string> {
 
         if (error) {
           reject(new Error(`YNAB authorization failed: ${error}`));
-          return new Response(`Authorization failed: ${error}. You can close this tab.`);
+          return new Response("error", { status: 400 });
         }
-        if (!code || state !== expectedState) {
-          reject(new Error("Invalid OAuth callback (missing code or state mismatch)."));
-          return new Response("Invalid callback. You can close this tab.", { status: 400 });
+        if (!accessToken || !expiresIn || state !== expectedState) {
+          reject(new Error("Invalid OAuth callback (missing token or state mismatch)."));
+          return new Response("invalid callback", { status: 400 });
         }
 
-        resolve(code);
-        return new Response(
-          "Authorization complete. You can close this tab and return to the terminal.",
-        );
+        resolve({ accessToken, expiresIn });
+        return new Response("ok");
       },
     });
   });
 }
 
-async function exchangeToken(body: URLSearchParams): Promise<TokenResponse> {
-  const res = await fetch(TOKEN_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body,
-  });
-  if (!res.ok) {
-    throw new Error(`YNAB token request failed: ${res.status} ${await res.text()}`);
-  }
-  return (await res.json()) as TokenResponse;
-}
-
 export async function login(): Promise<void> {
-  const { clientId, clientSecret } = await ensureClientCredentials();
+  const clientId = getClientId();
 
   const state = randomBytes(16).toString("hex");
   const authorizeUrl = new URL(AUTHORIZE_URL);
   authorizeUrl.searchParams.set("client_id", clientId);
   authorizeUrl.searchParams.set("redirect_uri", REDIRECT_URI);
-  authorizeUrl.searchParams.set("response_type", "code");
+  authorizeUrl.searchParams.set("response_type", "token");
   authorizeUrl.searchParams.set("state", state);
 
   console.log(
@@ -124,48 +119,23 @@ export async function login(): Promise<void> {
 
   const callback = waitForCallback(state);
   openBrowser(authorizeUrl.toString());
-  const code = await callback;
+  const { accessToken, expiresIn } = await callback;
 
-  const tokens = await exchangeToken(
-    new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      redirect_uri: REDIRECT_URI,
-      grant_type: "authorization_code",
-      code,
-    }),
-  );
-
-  storeTokens(tokens);
-  console.log("Authorization successful. Tokens saved.");
+  storeToken({ access_token: accessToken, expires_in: expiresIn });
+  console.log("Authorization successful. Token saved.");
 }
 
 export async function getValidAccessToken(): Promise<string> {
-  const tokens = getStoredTokens();
-  if (!tokens) {
+  const token = getStoredToken();
+  if (!token) {
     console.error("Not logged in. Run `cliynab login` first.");
     process.exit(1);
   }
 
-  if (Date.now() < tokens.expiresAt - EXPIRY_SKEW_MS) {
-    return tokens.accessToken;
-  }
-
-  const credentials = getClientCredentials();
-  if (!credentials) {
-    console.error("Missing OAuth client credentials. Run `cliynab login` again.");
+  if (Date.now() >= token.expiresAt - EXPIRY_SKEW_MS) {
+    console.error("Access token expired. Run `cliynab login` to reauthorize.");
     process.exit(1);
   }
 
-  const refreshed = await exchangeToken(
-    new URLSearchParams({
-      client_id: credentials.clientId,
-      client_secret: credentials.clientSecret,
-      grant_type: "refresh_token",
-      refresh_token: tokens.refreshToken,
-    }),
-  );
-
-  storeTokens(refreshed);
-  return refreshed.access_token;
+  return token.accessToken;
 }

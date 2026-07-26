@@ -12,20 +12,30 @@ A YNAB CLI built with [Bun](https://bun.sh) and TypeScript, compiled to a standa
    http://127.0.0.1:51739/callback
    ```
 
-2. Run:
+2. Create a `.env` file in the repo root with the Client ID from step 1:
+
+   ```
+   YNAB_CLIENT_ID=your-client-id
+   ```
+
+   The Client ID isn't a secret (it's a public identifier for the app), but it's still kept out
+   of git — it's a property of *this build* of the app, not something that varies per user. It
+   gets baked directly into the compiled executable at build time (see below), so end users of
+   the built `cliynab.exe` never need this file.
+
+3. Run:
 
    ```
    bun install
-   cliynab login
+   bun run src/index.ts login
    ```
 
-   The first run prompts for the Client ID / Client Secret from step 1 (or set `YNAB_CLIENT_ID`
-   / `YNAB_CLIENT_SECRET` env vars to skip the prompt) and stores them in
-   `~/.cliynab/config.json`. It then opens your browser to authorize with YNAB, spins up a
-   short-lived local server on port `51739` to catch the redirect, and exchanges the code for an
-   access + refresh token pair, also saved to the config file. Access tokens are refreshed
-   automatically as needed — you shouldn't need to re-run `login` unless the refresh token itself
-   is revoked.
+   This uses the [OAuth Implicit Grant](https://api.ynab.com/#outh-applications) flow (no client
+   secret involved — appropriate for a distributed CLI, which can't keep a secret confidential
+   anyway). It opens your browser to authorize with YNAB, spins up a short-lived local server on
+   port `51739` to catch the redirect, and saves the resulting access token to
+   `~/.cliynab/config.json`. The token lasts about 2 hours and there's no refresh token in this
+   flow, so you'll need to re-run `login` periodically when it expires.
 
 ## Development
 
@@ -47,7 +57,8 @@ and blocks it on failure. To bypass in a pinch: `git commit --no-verify`.
 bun run build
 ```
 
-This produces `dist/cliynab.exe`, a standalone binary (no Bun/Node install required to run it).
+This reads `YNAB_CLIENT_ID` from `.env`, bakes it into the bundle at compile time, and produces
+`dist/cliynab.exe` — a standalone binary (no Bun/Node install, and no `.env`, required to run it).
 
 To make it available anywhere on your machine, put `dist/` on your `PATH`, or copy the exe into
 a directory that's already on `PATH`. After that, whenever you pull changes or make edits, just
