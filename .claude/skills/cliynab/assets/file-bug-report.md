@@ -16,13 +16,14 @@ relevant).
 ## 1. Gather what a good report needs
 
 - **The exact command that was run** (e.g. `cliynab accounts list --tsv`), including whether it
-  was run from source (`bun run src/index.ts ...`) or a compiled `cliynab.exe`.
+  was run from source (`bun run src/index.ts ...`) or a compiled binary (`cliynab.exe` on Windows,
+  `cliynab` on Linux).
 - **What happened** — the actual output/error text, verbatim, not paraphrased.
 - **What was expected instead.**
 - **Steps to reproduce**, if it's not a one-shot command (e.g. "ran `login`, then waited 2 hours,
   then ran `budgets list`").
 - **Version**: `cliynab --version` (or `cliynab -V`).
-- **Environment**: OS (this project currently only targets Windows), and whether `.env`/
+- **Environment**: OS (Windows or Linux — this project doesn't target macOS), and whether `.env`/
   `~/.cliynab/config.json` state might matter (don't include the actual contents of either — see
   below).
 
@@ -70,8 +71,8 @@ gh issue create --repo schicks/ynab-cli \
 ## Environment
 
 - cliynab version: <from `cliynab --version`>
-- Running from: source / compiled `cliynab.exe`
-- OS: Windows
+- Running from: source / compiled binary
+- OS: Windows / Linux
 
 EOF
 ```

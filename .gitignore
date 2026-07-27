@@ -3,3 +3,5 @@ dist/
 *.tsbuildinfo
 .env
 .claude/settings.local.json
+result
+result-*

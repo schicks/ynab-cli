@@ -23,11 +23,20 @@ jobs:
 
       - run: nix develop --command bun run test
 
-      - run: nix develop --command bun run build
+      - run: nix build .#linux --impure --no-eval-cache --out-link result-linux
+        env:
+          YNAB_CLIENT_ID: ${{ secrets.YNAB_CLIENT_ID }}
+
+      - run: nix build .#windows --impure --no-eval-cache --out-link result-windows
         env:
           YNAB_CLIENT_ID: ${{ secrets.YNAB_CLIENT_ID }}
 
       - uses: actions/upload-artifact@v7
         with:
+          name: cliynab-linux
+          path: result-linux/bin/cliynab
+
+      - uses: actions/upload-artifact@v7
+        with:
           name: cliynab-windows
-          path: dist/cliynab.exe
+          path: result-windows/bin/cliynab.exe

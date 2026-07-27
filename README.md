@@ -1,6 +1,7 @@
 # cliynab
 
-A YNAB CLI built with [Bun](https://bun.sh) and TypeScript, compiled to a standalone Windows executable.
+A YNAB CLI built with [Bun](https://bun.sh) and TypeScript, compiled to a standalone Windows or Linux
+executable.
 
 ## Setup
 
@@ -51,7 +52,8 @@ bun run test                     # bun test
 A `flake.nix` is provided for a reproducible toolchain (pins the Bun version
 used locally and in CI). If you have [Nix](https://nixos.org) with flakes
 enabled, run `nix develop` to drop into a shell with `bun` available, then
-use the commands above as normal.
+use the commands above as normal. It also exposes the compiled binaries as
+package derivations — see [Building via Nix](#building-via-nix) below.
 
 `bun install` points git at `.githooks` (via the `postinstall` script), so a `pre-commit` hook
 runs typecheck, lint, format checks, and tests (all on their default rules/config) before every
@@ -93,15 +95,33 @@ need to refresh it by hand: `bun run generate:skill-manifest`.
 ## Building / updating the executable
 
 ```
-bun run build
+bun run build              # -> dist/cliynab.exe (Windows)
+bun run build -- linux     # -> dist/cliynab (Linux)
 ```
 
-This reads `YNAB_CLIENT_ID` from `.env`, bakes it into the bundle at compile time, and produces
-`dist/cliynab.exe` — a standalone binary (no Bun/Node install, and no `.env`, required to run it).
+Both read `YNAB_CLIENT_ID` from `.env` and bake it into the bundle at compile time, producing a
+standalone binary (no Bun/Node install, and no `.env`, required to run it).
 
-To make it available anywhere on your machine, put `dist/` on your `PATH`, or copy the exe into
+To make it available anywhere on your machine, put `dist/` on your `PATH`, or copy the binary into
 a directory that's already on `PATH`. After that, whenever you pull changes or make edits, just
-re-run `bun run build` to update the binary in place.
+re-run the build command to update the binary in place.
+
+### Building via Nix
+
+`flake.nix` also exposes both targets as real, hermetic package derivations — everything needed
+(vendored `node_modules`, and for the Windows target, bun's cross-compile runtime) is fetched once
+into content-addressed Fixed-Output Derivations, so the actual compile step runs with no network
+access:
+
+```
+YNAB_CLIENT_ID=your-client-id nix build .#linux   --impure --no-eval-cache
+YNAB_CLIENT_ID=your-client-id nix build .#windows --impure --no-eval-cache
+```
+
+`--impure` is required because the Client ID is threaded in from the environment (it's baked into
+the binary but isn't a build secret — see above); `--no-eval-cache` avoids Nix serving back a
+stale evaluation from a previous run with a different (or unset) `YNAB_CLIENT_ID`. Output lands at
+`result/bin/cliynab` / `result/bin/cliynab.exe`.
 
 ## Commands
 
