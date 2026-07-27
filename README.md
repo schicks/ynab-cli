@@ -48,6 +48,11 @@ bun run fmt:check                # oxfmt --check, no writes
 bun run test                     # bun test
 ```
 
+A `flake.nix` is provided for a reproducible toolchain (pins the Bun version
+used locally and in CI). If you have [Nix](https://nixos.org) with flakes
+enabled, run `nix develop` to drop into a shell with `bun` available, then
+use the commands above as normal.
+
 `bun install` points git at `.githooks` (via the `postinstall` script), so a `pre-commit` hook
 runs typecheck, lint, format checks, and tests (all on their default rules/config) before every
 commit and blocks it on failure. To bypass in a pinch: `git commit --no-verify`.

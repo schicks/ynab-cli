@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: DeterminateSystems/nix-installer-action@v22
+
+      - run: nix develop --command bun install --frozen-lockfile
+
+      - run: nix develop --command bun run typecheck
+
+      - run: nix develop --command bun run lint
+
+      - run: nix develop --command bun run fmt:check
+
+      - run: nix develop --command bun run test
+
+      - run: nix develop --command bun run build
+        env:
+          YNAB_CLIENT_ID: ${{ vars.YNAB_CLIENT_ID }}
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cliynab-windows
+          path: dist/cliynab.exe

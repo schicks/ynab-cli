@@ -14,6 +14,8 @@ const proc = Bun.spawn(
     "bun",
     "build",
     "--compile",
+    "--target",
+    "bun-windows-x64",
     "--minify",
     "--sourcemap",
     "./src/index.ts",
