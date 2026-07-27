@@ -1,2 +1,2 @@
 #!/bin/sh
-bun run typecheck && bun run lint && bun run fmt:check && bun run test
+bun run typecheck && bun run lint && bun run fmt:check && bun run check:generated && bun run test

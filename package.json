@@ -13,6 +13,7 @@
     "test": "bun test",
     "generate:types": "openapi-typescript openapi/ynab.yaml -o src/generated/ynab-openapi.d.ts",
     "generate:skill-manifest": "bun run scripts/generate-skill-manifest.ts",
+    "check:generated": "bun run scripts/check-generated.ts",
     "prebuild": "bun run generate:skill-manifest",
     "postinstall": "git config core.hooksPath .githooks"
   },
