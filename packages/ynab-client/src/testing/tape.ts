@@ -1,7 +1,7 @@
 import talkback from "talkback";
 import type { Req } from "talkback/types";
 import type Tape from "talkback/tape";
-import { createYnabClient, type YnabClient } from "../ynabClient";
+import { createYnabClient, type YnabClient } from "../client";
 
 const YNAB_HOST = "https://api.ynab.com";
 

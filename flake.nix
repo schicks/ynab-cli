@@ -1,5 +1,5 @@
 {
-  description = "cliynab dev environment";
+  description = "ynab-cli monorepo dev environment";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
@@ -19,6 +19,13 @@
         src = ./.;
         nativeBuildInputs = [ pkgs.bun pkgs.cacert ];
 
+        # bun workspaces symlinks node_modules/<workspace-package> to
+        # ../packages/<name>; those targets only exist once this output is
+        # combined with the full repo source (see mkCliynab's buildPhase),
+        # so within this derivation's own output they're dangling and would
+        # otherwise fail stdenv's default broken-symlink check.
+        dontCheckForBrokenSymlinks = true;
+
         buildPhase = ''
           runHook preBuild
           export HOME=$TMPDIR
@@ -34,7 +41,7 @@
 
         outputHashMode = "recursive";
         outputHashAlgo = "sha256";
-        outputHash = "sha256-R18AVmjyqq/pZa0FYceDTycpATtlJk2gTQrVE+Jec4c=";
+        outputHash = "sha256-t+b/uEJNzJsylUeY7MNCl7IFKnU6XivlTXtMQKuVnHY=";
       };
 
       # Cross-compiling to another OS (`bun build --compile --target
@@ -103,7 +110,7 @@
             mkdir -p "$HOME/.bun/install/cache"
             cp ${runtimeCache}/bun-windows-x64-v${pkgs.bun.version} "$HOME/.bun/install/cache/bun-windows-x64-v${pkgs.bun.version}"
           '' + ''
-            bun run build -- ${target}
+            bun run --cwd packages/cli build -- ${target}
             runHook postBuild
           '' + pkgs.lib.optionalString (target == "linux") ''
             # nixpkgs' bun has its own ELF interpreter patched to a Nix
@@ -121,8 +128,12 @@
         };
     in {
       packages.${system} = {
-        linux = mkCliynab { target = "linux"; outfile = "dist/cliynab"; };
-        windows = mkCliynab { target = "windows"; outfile = "dist/cliynab.exe"; runtimeCache = windowsRuntime; };
+        linux = mkCliynab { target = "linux"; outfile = "packages/cli/dist/cliynab"; };
+        windows = mkCliynab {
+          target = "windows";
+          outfile = "packages/cli/dist/cliynab.exe";
+          runtimeCache = windowsRuntime;
+        };
         default = self.packages.${system}.linux;
       };
 

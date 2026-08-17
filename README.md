@@ -1,7 +1,15 @@
-# cliynab
+# ynab-cli
 
-A YNAB CLI built with [Bun](https://bun.sh) and TypeScript, compiled to a standalone Windows or Linux
-executable.
+A monorepo for YNAB tooling, built with [Bun](https://bun.sh) and TypeScript, managed as a Bun
+workspace and built with [Nix](https://nixos.org). Nothing here is published to npm — packages are
+consumed only within this workspace or compiled to standalone executables.
+
+- [`packages/ynab-client`](packages/ynab-client) — a thin wrapper around the YNAB HTTP API
+  (typed via [`openapi-fetch`](https://openapi-ts.dev/openapi-fetch)), plus a
+  [`talkback`](https://github.com/ijpiantanida/talkback)-based tape-testing helper for replaying
+  recorded API responses offline. Shared by `cliynab` and any future YNAB tooling in this repo.
+- [`packages/cli`](packages/cli) — `cliynab`, a CLI for interacting with YNAB, compiled to a
+  standalone Windows or Linux executable.
 
 ## Setup
 
@@ -28,7 +36,7 @@ executable.
 
    ```
    bun install
-   bun run src/index.ts login
+   bun run --cwd packages/cli dev login
    ```
 
    This uses the [OAuth Implicit Grant](https://api.ynab.com/#outh-applications) flow (no client
@@ -40,43 +48,57 @@ executable.
 
 ## Development
 
+This is a [Bun workspace](https://bun.sh/docs/install/workspaces): `bun install` at the repo root
+installs every package's dependencies and links `ynab-client` into `cliynab` via a workspace
+symlink. The root `package.json` scripts fan out to every package with
+[`bun run --filter`](https://bun.sh/docs/cli/filter):
+
 ```
-bun run src/index.ts <command>   # run from source, no build needed
-bun run typecheck                # tsc --noEmit
-bun run lint                     # oxlint
-bun run fmt                      # oxfmt, writes fixes in place
-bun run fmt:check                # oxfmt --check, no writes
-bun run test                     # bun test
+bun run typecheck                # tsc --noEmit, in every package
+bun run lint                     # oxlint, in every package
+bun run fmt                      # oxfmt, writes fixes in place, in every package
+bun run fmt:check                # oxfmt --check, no writes, in every package
+bun run test                     # bun test, in every package
+bun run check:generated          # verifies generated files are up to date, in every package
+```
+
+To run a command in just one package, use `bun run --cwd packages/<name> <script>` (or `cd` into
+it first):
+
+```
+bun run --cwd packages/cli dev <command>   # run the CLI from source, no build needed
 ```
 
 A `flake.nix` is provided for a reproducible toolchain (pins the Bun version
 used locally and in CI). If you have [Nix](https://nixos.org) with flakes
 enabled, run `nix develop` to drop into a shell with `bun` available, then
-use the commands above as normal. It also exposes the compiled binaries as
+use the commands above as normal. It also exposes the compiled `cliynab` binaries as
 package derivations — see [Building via Nix](#building-via-nix) below.
 
-`bun install` points git at `.githooks` (via the `postinstall` script), so a `pre-commit` hook
-runs typecheck, lint, format checks, and tests (all on their default rules/config) before every
-commit and blocks it on failure. To bypass in a pinch: `git commit --no-verify`.
+`bun install` points git at `.githooks` (via the root `postinstall` script), so a `pre-commit`
+hook runs typecheck, lint, format checks, generated-file checks, and tests (all on their default
+rules/config, across every package) before every commit and blocks it on failure. To bypass in a
+pinch: `git commit --no-verify`.
 
 ### Testing
 
 Command executors (the plain functions behind each CLI command, e.g. `listBudgets` in
-`src/commands/budgets.ts`) are tested against recorded, anonymized fixtures ("tapes") of real
-YNAB API responses, replayed offline via [`talkback`](https://github.com/ijpiantanida/talkback) —
-`bun test` never touches the real network or needs credentials. The CLI wiring itself
-(`commander` argument parsing) isn't tested — see `.claude/skills/tape-testing/SKILL.md` for the
-full record → anonymize → replay workflow and the reasoning behind it.
+`packages/cli/src/commands/budgets.ts`) are tested against recorded, anonymized fixtures
+("tapes") of real YNAB API responses, replayed offline via the `withTape` helper exported from
+`ynab-client/testing` — `bun test` never touches the real network or needs credentials. The CLI
+wiring itself (`commander` argument parsing) isn't tested — see
+`.claude/skills/tape-testing/SKILL.md` for the full record → anonymize → replay workflow and the
+reasoning behind it.
 
 ### Regenerating YNAB API types
 
-`src/generated/ynab-openapi.d.ts` is generated from `openapi/ynab.yaml` (YNAB's published spec,
-vendored into the repo) via [`openapi-typescript`](https://openapi-ts.dev). To pull a newer spec
-and regenerate:
+`packages/ynab-client/src/generated/ynab-openapi.d.ts` is generated from
+`packages/ynab-client/openapi/ynab.yaml` (YNAB's published spec, vendored into the repo) via
+[`openapi-typescript`](https://openapi-ts.dev). To pull a newer spec and regenerate:
 
 ```
-curl -sSL https://api.ynab.com/papi/open_api_spec.yaml -o openapi/ynab.yaml
-bun run generate:types
+curl -sSL https://api.ynab.com/papi/open_api_spec.yaml -o packages/ynab-client/openapi/ynab.yaml
+bun run --cwd packages/ynab-client generate:types
 ```
 
 Both the spec and the generated types are committed so the project builds without network access.
@@ -87,24 +109,24 @@ Both the spec and the generated types are committed so the project builds withou
 install` treats it as one — running from source, it reads that directory off disk directly, so
 adding, removing, or editing a file there needs no code change and nothing to regenerate.
 Compiled into `dist/cliynab.exe`, there's no source tree to read at runtime, so it falls back to
-`src/generated/skill-files.ts`, a static-import manifest of the same folder that `bun run build`
-regenerates automatically (`prebuild` script) before compiling. That generated file is also
-committed so a fresh clone typechecks/tests without needing to run anything first; if you ever
-need to refresh it by hand: `bun run generate:skill-manifest`.
+`packages/cli/src/generated/skill-files.ts`, a static-import manifest of the same folder that
+`bun run build` regenerates automatically (`prebuild` script) before compiling. That generated
+file is also committed so a fresh clone typechecks/tests without needing to run anything first;
+if you ever need to refresh it by hand: `bun run --cwd packages/cli generate:skill-manifest`.
 
 ## Building / updating the executable
 
 ```
-bun run build              # -> dist/cliynab.exe (Windows)
-bun run build -- linux     # -> dist/cliynab (Linux)
+bun run build                            # -> packages/cli/dist/cliynab.exe (Windows)
+bun run --cwd packages/cli build -- linux  # -> packages/cli/dist/cliynab (Linux)
 ```
 
 Both read `YNAB_CLIENT_ID` from `.env` and bake it into the bundle at compile time, producing a
 standalone binary (no Bun/Node install, and no `.env`, required to run it).
 
-To make it available anywhere on your machine, put `dist/` on your `PATH`, or copy the binary into
-a directory that's already on `PATH`. After that, whenever you pull changes or make edits, just
-re-run the build command to update the binary in place.
+To make it available anywhere on your machine, put `packages/cli/dist/` on your `PATH`, or copy
+the binary into a directory that's already on `PATH`. After that, whenever you pull changes or
+make edits, just re-run the build command to update the binary in place.
 
 ### Building via Nix
 

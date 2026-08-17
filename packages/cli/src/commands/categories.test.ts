@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { withTape } from "../testing/tape";
+import { withTape } from "ynab-client/testing";
 import { listCategoryTargets } from "./categories";
 
 describe("listCategoryTargets", () => {

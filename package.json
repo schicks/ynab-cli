@@ -1,32 +1,22 @@
 {
-  "name": "cliynab",
-  "version": "0.1.0",
+  "name": "ynab-cli",
   "private": true,
   "type": "module",
+  "workspaces": ["packages/*"],
   "scripts": {
-    "dev": "bun run src/index.ts",
-    "build": "bun run scripts/build.ts",
-    "typecheck": "tsc --noEmit",
-    "lint": "oxlint --ignore-path=.oxignore src",
-    "fmt": "oxfmt --ignore-path=.oxignore src",
-    "fmt:check": "oxfmt --ignore-path=.oxignore --check src",
-    "test": "bun test",
-    "generate:types": "openapi-typescript openapi/ynab.yaml -o src/generated/ynab-openapi.d.ts",
-    "generate:skill-manifest": "bun run scripts/generate-skill-manifest.ts",
-    "check:generated": "bun run scripts/check-generated.ts",
-    "prebuild": "bun run generate:skill-manifest",
+    "typecheck": "bun run --filter '*' typecheck",
+    "lint": "bun run --filter '*' lint",
+    "fmt": "bun run --filter '*' fmt",
+    "fmt:check": "bun run --filter '*' fmt:check",
+    "test": "bun run --filter '*' test",
+    "check:generated": "bun run --filter '*' check:generated",
+    "build": "bun run --cwd packages/cli build",
     "postinstall": "git config core.hooksPath .githooks"
-  },
-  "dependencies": {
-    "commander": "^13.1.0",
-    "openapi-fetch": "^0.17.0"
   },
   "devDependencies": {
     "@types/bun": "^1.2.16",
-    "openapi-typescript": "^7.13.0",
     "oxfmt": "^0.60.0",
     "oxlint": "^1.75.0",
-    "talkback": "^4.2.0",
     "typescript": "^5.7.3"
   }
 }

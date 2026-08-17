@@ -12,7 +12,7 @@ that replays a recorded, anonymized fixture ("tape") instead of the real YNAB AP
 ## Scope: test executors, not the CLI
 
 Test the **command executor function** (the plain async function that takes a client and returns
-data — e.g. `listBudgets(client)` in `src/commands/budgets.ts`), not the `commander` `.action()`
+data — e.g. `listBudgets(client)` in `packages/cli/src/commands/budgets.ts`), not the `commander` `.action()`
 wiring around it. The CLI argument-parsing/wiring layer is low-risk (it's a thin pass-through to
 the executor) and expensive to test meaningfully (would mean spawning the built CLI or mocking
 stdin/stdout/process.exit). Every command file should export its executor function separately from
@@ -25,14 +25,14 @@ a tape from scratch. Hand-written tapes drift from what the real API actually re
 
 ### 1. Write the test first, pointing at an empty tapes directory
 
-Create `src/commands/<name>.test.ts` next to the command file, and a
-`src/commands/<name>.test.tapes/` directory next to it (this exact naming — `*.test.tapes/` — is
-covered by `.oxignore` so oxlint/oxfmt don't try to treat fixtures as source). Use `withTape` from
-`src/testing/tape.ts`:
+Create `packages/cli/src/commands/<name>.test.ts` next to the command file, and a
+`packages/cli/src/commands/<name>.test.tapes/` directory next to it (this exact naming —
+`*.test.tapes/` — is covered by `.oxignore` so oxlint/oxfmt don't try to treat fixtures as
+source). Use `withTape` from the shared `ynab-client` package's `testing` export:
 
 ```ts
 import { describe, expect, test } from "bun:test";
-import { withTape } from "../testing/tape";
+import { withTape } from "ynab-client/testing";
 import { listBudgets } from "./budgets";
 
 describe("listBudgets", () => {
@@ -56,11 +56,11 @@ You need a real, currently-valid access token. Get one from `~/.cliynab/config.j
 `accessToken` field) after running `cliynab login`, or generate one fresh if it's expired.
 
 ```
-TAPE_RECORD=1 YNAB_RECORD_TOKEN=<real access token> bun test src/commands/<name>.test.ts
+TAPE_RECORD=1 YNAB_RECORD_TOKEN=<real access token> bun test packages/cli/src/commands/<name>.test.ts
 ```
 
 This makes a real request to `https://api.ynab.com` through the talkback proxy and writes the raw
-response to `src/commands/<name>.test.tapes/unnamed-<timestamp>.json5`. The test will likely
+response to `packages/cli/src/commands/<name>.test.tapes/unnamed-<timestamp>.json5`. The test will likely
 *fail* at this point since your assertions don't match real account data yet — that's expected,
 ignore it for now.
 
@@ -88,7 +88,7 @@ Open the recorded `.json5` file and edit it by hand:
 - Leave `req.headers` as `{}` — the harness (see below) already discards all request headers when
   storing tapes, so there's nothing to anonymize there.
 
-Look at `src/commands/budgets.test.tapes/list-two-budgets.json5` for a worked example.
+Look at `packages/cli/src/commands/budgets.test.tapes/list-two-budgets.json5` for a worked example.
 
 ### 4. Fix up the test's assertions
 
@@ -98,7 +98,7 @@ real values from step 2.
 ### 5. Verify it passes fully offline
 
 ```
-bun test src/commands/<name>.test.ts
+bun test packages/cli/src/commands/<name>.test.ts
 ```
 
 No `TAPE_RECORD`, no token needed. If it fails with something like "Tape for ... not found and
@@ -116,7 +116,7 @@ the same directory.
 
 ## Why the harness looks the way it does
 
-`src/testing/tape.ts` wraps `talkback` with a few non-obvious settings — don't remove them without
+`packages/ynab-client/src/testing/tape.ts` wraps `talkback` with a few non-obvious settings — don't remove them without
 understanding why they're there:
 
 - `allowHeaders: []` — tapes are matched (and stored) by method+url+body only, ignoring all
@@ -132,4 +132,4 @@ understanding why they're there:
   dropping it lets Bun's own server decide framing when serving the response.
 
 These are all test-harness-only workarounds for Bun/talkback quirks — production code
-(`src/ynabClient.ts`) is untouched by any of this.
+(`packages/ynab-client/src/client.ts`) is untouched by any of this.
