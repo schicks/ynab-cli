@@ -16,8 +16,8 @@ relevant).
 ## 1. Gather what a good report needs
 
 - **The exact command that was run** (e.g. `cliynab accounts list --tsv`), including whether it
-  was run from source (`bun run src/index.ts ...`) or a compiled binary (`cliynab.exe` on Windows,
-  `cliynab` on Linux).
+  was run from source (`bun run --cwd packages/cli dev ...`) or a compiled binary (`cliynab.exe` on
+  Windows, `cliynab` on Linux).
 - **What happened** — the actual output/error text, verbatim, not paraphrased.
 - **What was expected instead.**
 - **Steps to reproduce**, if it's not a one-shot command (e.g. "ran `login`, then waited 2 hours,

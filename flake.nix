@@ -1,5 +1,5 @@
 {
-  description = "cliynab dev environment";
+  description = "ynab-cli monorepo dev environment";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
@@ -34,7 +34,10 @@
 
         outputHashMode = "recursive";
         outputHashAlgo = "sha256";
-        outputHash = "sha256-R18AVmjyqq/pZa0FYceDTycpATtlJk2gTQrVE+Jec4c=";
+        # Moving to bun workspaces changed bun.lock's shape (and node_modules'
+        # layout, e.g. the new workspace symlinks), so the old hash no longer
+        # matches. Placeholder until rebuilt - see the comment above for how.
+        outputHash = pkgs.lib.fakeHash;
       };
 
       # Cross-compiling to another OS (`bun build --compile --target
@@ -103,7 +106,7 @@
             mkdir -p "$HOME/.bun/install/cache"
             cp ${runtimeCache}/bun-windows-x64-v${pkgs.bun.version} "$HOME/.bun/install/cache/bun-windows-x64-v${pkgs.bun.version}"
           '' + ''
-            bun run build -- ${target}
+            bun run --cwd packages/cli build -- ${target}
             runHook postBuild
           '' + pkgs.lib.optionalString (target == "linux") ''
             # nixpkgs' bun has its own ELF interpreter patched to a Nix
@@ -121,8 +124,12 @@
         };
     in {
       packages.${system} = {
-        linux = mkCliynab { target = "linux"; outfile = "dist/cliynab"; };
-        windows = mkCliynab { target = "windows"; outfile = "dist/cliynab.exe"; runtimeCache = windowsRuntime; };
+        linux = mkCliynab { target = "linux"; outfile = "packages/cli/dist/cliynab"; };
+        windows = mkCliynab {
+          target = "windows";
+          outfile = "packages/cli/dist/cliynab.exe";
+          runtimeCache = windowsRuntime;
+        };
         default = self.packages.${system}.linux;
       };
 

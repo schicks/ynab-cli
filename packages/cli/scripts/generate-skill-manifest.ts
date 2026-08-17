@@ -9,7 +9,7 @@
 import { mkdir, readdir, writeFile } from "node:fs/promises";
 import { dirname, join, relative, sep } from "node:path";
 
-export const SKILL_ROOT = join(import.meta.dir, "..", ".claude", "skills", "cliynab");
+export const SKILL_ROOT = join(import.meta.dir, "..", "..", "..", ".claude", "skills", "cliynab");
 export const OUTPUT_PATH = join(import.meta.dir, "..", "src", "generated", "skill-files.ts");
 
 export async function buildManifest(): Promise<string> {
@@ -22,7 +22,8 @@ export async function buildManifest(): Promise<string> {
     .sort();
 
   const importLines = relativePaths.map(
-    (path, i) => `import f${i} from "../../.claude/skills/cliynab/${path}" with { type: "text" };`
+    (path, i) =>
+      `import f${i} from "../../../../.claude/skills/cliynab/${path}" with { type: "text" };`
   );
   const entryLines = relativePaths.map(
     (path, i) => `  { relativePath: ${JSON.stringify(path)}, content: f${i} },`

@@ -1,0 +1,22 @@
+{
+  "name": "cliynab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "build": "bun run scripts/build.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint --ignore-path=.oxignore src",
+    "fmt": "oxfmt --ignore-path=.oxignore src",
+    "fmt:check": "oxfmt --ignore-path=.oxignore --check src",
+    "test": "bun test",
+    "generate:skill-manifest": "bun run scripts/generate-skill-manifest.ts",
+    "check:generated": "bun run scripts/check-generated.ts",
+    "prebuild": "bun run generate:skill-manifest"
+  },
+  "dependencies": {
+    "commander": "^13.1.0",
+    "ynab-client": "workspace:*"
+  }
+}

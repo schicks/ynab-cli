@@ -32,7 +32,16 @@ interface SkillFileContent {
 }
 
 async function loadSkillFiles(): Promise<SkillFileContent[]> {
-  const sourceSkillRoot = join(import.meta.dir, "..", "..", ".claude", "skills", "cliynab");
+  const sourceSkillRoot = join(
+    import.meta.dir,
+    "..",
+    "..",
+    "..",
+    "..",
+    ".claude",
+    "skills",
+    "cliynab",
+  );
   if (existsSync(sourceSkillRoot)) {
     return readSkillFilesFromDisk(sourceSkillRoot);
   }
