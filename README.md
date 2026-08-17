@@ -10,6 +10,11 @@ consumed only within this workspace or compiled to standalone executables.
   recorded API responses offline. Shared by `cliynab` and any future YNAB tooling in this repo.
 - [`packages/cli`](packages/cli) — `cliynab`, a CLI for interacting with YNAB, compiled to a
   standalone Windows or Linux executable.
+- [`packages/hypotheticals`](packages/hypotheticals) — a small Vite/React web app for exploring
+  "what if" changes to category targets before committing them: edit targets (typed values or
+  quick expressions like `600+100`), watch Income/Allocated/∆ update live, then Apply or discard.
+  Runs against a mock budget stub (`src/budgetSource.ts`) in place of real YNAB auth for now — see
+  [Development](#development) below for how to run it.
 
 ## Setup
 
@@ -67,6 +72,7 @@ it first):
 
 ```
 bun run --cwd packages/cli dev <command>   # run the CLI from source, no build needed
+bun run --cwd packages/hypotheticals dev   # start the hypotheticals web app (Vite dev server)
 ```
 
 A `flake.nix` is provided for a reproducible toolchain (pins the Bun version
