@@ -19,6 +19,13 @@
         src = ./.;
         nativeBuildInputs = [ pkgs.bun pkgs.cacert ];
 
+        # bun workspaces symlinks node_modules/<workspace-package> to
+        # ../packages/<name>; those targets only exist once this output is
+        # combined with the full repo source (see mkCliynab's buildPhase),
+        # so within this derivation's own output they're dangling and would
+        # otherwise fail stdenv's default broken-symlink check.
+        dontCheckForBrokenSymlinks = true;
+
         buildPhase = ''
           runHook preBuild
           export HOME=$TMPDIR
@@ -34,10 +41,7 @@
 
         outputHashMode = "recursive";
         outputHashAlgo = "sha256";
-        # Moving to bun workspaces changed bun.lock's shape (and node_modules'
-        # layout, e.g. the new workspace symlinks), so the old hash no longer
-        # matches. Placeholder until rebuilt - see the comment above for how.
-        outputHash = pkgs.lib.fakeHash;
+        outputHash = "sha256-t+b/uEJNzJsylUeY7MNCl7IFKnU6XivlTXtMQKuVnHY=";
       };
 
       # Cross-compiling to another OS (`bun build --compile --target
