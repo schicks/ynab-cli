@@ -14,7 +14,9 @@ consumed only within this workspace or compiled to standalone executables.
   "what if" changes to category targets before committing them: edit targets (typed values or
   quick expressions like `600+100`), watch Income/Allocated/∆ update live, then Apply or discard.
   Runs against a mock budget stub (`src/budgetSource.ts`) in place of real YNAB auth for now — see
-  [Development](#development) below for how to run it.
+  [Development](#development) below for how to run it. Live at
+  [schicks.github.io/ynab-cli](https://schicks.github.io/ynab-cli/), redeployed automatically on
+  every push to `main` that touches the package (see [Deployment](#deployment)).
 
 ## Setup
 
@@ -150,6 +152,30 @@ YNAB_CLIENT_ID=your-client-id nix build .#windows --impure --no-eval-cache
 the binary but isn't a build secret — see above); `--no-eval-cache` avoids Nix serving back a
 stale evaluation from a previous run with a different (or unset) `YNAB_CLIENT_ID`. Output lands at
 `result/bin/cliynab` / `result/bin/cliynab.exe`.
+
+## Deployment
+
+`packages/hypotheticals` is a static site (it talks to a mock budget stub, not a server — see
+above), so it deploys straight to GitHub Pages, no backend to host:
+
+- **Production** — [`.github/workflows/pages-deploy.yml`](.github/workflows/pages-deploy.yml)
+  builds the package and publishes it to the root of the `gh-pages` branch on every push to `main`
+  that touches `packages/hypotheticals`. Live at
+  [schicks.github.io/ynab-cli](https://schicks.github.io/ynab-cli/).
+- **PR previews** — [`.github/workflows/pages-preview.yml`](.github/workflows/pages-preview.yml)
+  builds each pull request that touches `packages/hypotheticals` and publishes it to
+  `gh-pages` under `pr-preview/pr-<number>/` via
+  [`rossjrw/pr-preview-action`](https://github.com/rossjrw/pr-preview-action), which also comments
+  the preview link on the PR and tears the preview down when the PR closes.
+
+Both workflows push to the same `gh-pages` branch (production at the root, previews in their own
+subfolders) and share a concurrency group so they never race each other.
+
+This only needs one manual, one-time setup step from a repo admin: **Settings → Pages → Source →
+Deploy from a branch → `gh-pages` / `(root)`**. (It can't be done from a workflow or the API tools
+available here — someone with admin access on the repo needs to flip it once. `gh-pages` won't
+exist as a branch to pick until the first workflow run has created it, so trigger a push to `main`
+under this package, or open a PR against it, before looking for the branch in that dropdown.)
 
 ## Commands
 
