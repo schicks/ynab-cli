@@ -1,0 +1,38 @@
+name: Deploy hypotheticals to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/hypotheticals/**"
+      - ".github/workflows/pages-deploy.yml"
+
+# Shared with pages-preview.yml so a production deploy and a PR preview
+# deploy never race to push the gh-pages branch at the same time.
+concurrency:
+  group: gh-pages-branch
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: DeterminateSystems/nix-installer-action@v22
+
+      - run: nix develop --command bun install --frozen-lockfile
+
+      - run: nix develop --command bun run --cwd packages/hypotheticals build -- --base=/ynab-cli/
+
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: packages/hypotheticals/dist
+          # PR previews live in pr-preview/ on the same branch (see
+          # pages-preview.yml) — keep_files stops this deploy from wiping
+          # them out.
+          keep_files: true
